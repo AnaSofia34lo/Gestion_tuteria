@@ -1,0 +1,28 @@
+name: gestion_tutorias
+description: "G61-5 Tutorías académicas con cupos - Desarrollo Móvil UdeM 2026-2."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.6.0
+  shared_preferences: ^2.5.5
+  path_provider: ^2.1.6
+  drift: ^2.34.0
+  path: ^1.9.1
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  drift_dev: ^2.34.0
+  build_runner: ^2.4.15
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

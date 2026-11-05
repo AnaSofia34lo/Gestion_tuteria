@@ -1,0 +1,11 @@
+[
+  {"id": 1, "nombre": "Cálculo diferencial", "area": "Matemáticas", "descripcion": "Límites, derivadas y aplicaciones"},
+  {"id": 2, "nombre": "Álgebra lineal", "area": "Matemáticas", "descripcion": "Matrices, vectores y sistemas de ecuaciones"},
+  {"id": 3, "nombre": "Estadística", "area": "Matemáticas", "descripcion": "Probabilidad y distribuciones"},
+  {"id": 4, "nombre": "Física mecánica", "area": "Ciencias", "descripcion": "Cinemática, dinámica y energía"},
+  {"id": 5, "nombre": "Química general", "area": "Ciencias", "descripcion": "Estequiometría y enlaces"},
+  {"id": 6, "nombre": "Programación orientada a objetos", "area": "Ingeniería de software", "descripcion": "Clases, herencia y polimorfismo"},
+  {"id": 7, "nombre": "Estructuras de datos", "area": "Ingeniería de software", "descripcion": "Listas, árboles y grafos"},
+  {"id": 8, "nombre": "Desarrollo móvil", "area": "Ingeniería de software", "descripcion": "Flutter, persistencia y sincronización"},
+  {"id": 9, "nombre": "Lectura crítica", "area": "Humanidades", "descripcion": "Comprensión y argumentación"}
+]
