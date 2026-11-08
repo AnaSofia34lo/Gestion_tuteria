@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Necesario en release: HTTP del catálogo, Firebase Auth, Firestore y Crashlytics. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <application
-        android:label="gestion_tutorias"
+        android:label="Tutorías G61-5"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

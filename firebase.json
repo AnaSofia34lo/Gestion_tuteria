@@ -1,0 +1,25 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "gestion-tutorias-g61-5",
+          "appId": "1:27054518300:android:74ecc40eec6e23b11bafd9",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "gestion-tutorias-g61-5",
+          "configurations": {
+            "android": "1:27054518300:android:74ecc40eec6e23b11bafd9"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}

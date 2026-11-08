@@ -1,0 +1,193 @@
+rules_version = '2';
+
+// Reglas de seguridad G61-5 Tutorías académicas con cupos.
+// - Sin permisos globales: todo exige autenticación y rol.
+// - El usuario no puede cambiar su rol ni suplantar el uid del creador.
+// - Cada rol solo modifica los campos que le pertenecen.
+// - Los cupos solo cambian junto con la inscripción del mismo estudiante.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function autenticado() {
+      return request.auth != null;
+    }
+
+    function uid() {
+      return request.auth.uid;
+    }
+
+    function rol() {
+      return get(/databases/$(database)/documents/usuarios/$(uid())).data.rol;
+    }
+
+    function esEstudiante() {
+      return autenticado() && rol() == 'estudiante';
+    }
+
+    function esTutor() {
+      return autenticado() && rol() == 'tutor';
+    }
+
+    function esCoordinador() {
+      return autenticado() && rol() == 'coordinador';
+    }
+
+    function soloCambian(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos);
+    }
+
+    function rutaSesion(sesionId) {
+      return /databases/$(database)/documents/sesiones/$(sesionId);
+    }
+
+    function rutaInscripcion(sesionId) {
+      return /databases/$(database)/documents/inscripciones/$(sesionId + '_' + uid());
+    }
+
+    // ---------- Perfiles ----------
+    match /usuarios/{userId} {
+      allow read: if autenticado()
+        && (userId == uid() || rol() in ['tutor', 'coordinador']);
+
+      // Al registrarse el usuario solo puede crearse como estudiante.
+      allow create: if autenticado()
+        && userId == uid()
+        && request.resource.data.keys().hasOnly(['nombre', 'email', 'rol', 'creadoEn'])
+        && request.resource.data.rol == 'estudiante'
+        && request.resource.data.nombre is string
+        && request.resource.data.nombre.size() > 0
+        && request.resource.data.email == request.auth.token.email;
+
+      // Puede editar su nombre, nunca su rol ni su correo.
+      allow update: if autenticado() && userId == uid() && soloCambian(['nombre']);
+      allow delete: if false;
+    }
+
+    // ---------- Sesiones ----------
+    match /sesiones/{sesionId} {
+      allow read: if autenticado();
+
+      // Regla 1 (propuesta): futura, capacidad 1-10, tutor = quien la crea.
+      allow create: if esTutor()
+        && request.resource.data.tutorUid == uid()
+        && request.resource.data.estado == 'propuesta'
+        && request.resource.data.cuposOcupados == 0
+        && request.resource.data.capacidad is int
+        && request.resource.data.capacidad >= 1
+        && request.resource.data.capacidad <= 10
+        && request.resource.data.inicio is timestamp
+        && request.resource.data.inicio > request.time;
+
+      allow update: if
+        // Coordinación publica una propuesta futura reservando la franja del
+        // tutor en la misma transacción, o la rechaza.
+        (esCoordinador()
+          && resource.data.estado == 'propuesta'
+          && soloCambian(['estado', 'actualizadoEn', 'motivoRechazo'])
+          && (
+            request.resource.data.estado == 'rechazada'
+            || (request.resource.data.estado == 'publicada'
+                && resource.data.inicio > request.time
+                && getAfter(/databases/$(database)/documents/franjas/$(resource.data.tutorUid + '_' + string(resource.data.inicio.toMillis()))).data.sesionId == sesionId)
+          ))
+        // Tutor dueño marca realizada cuando terminó la franja.
+        || (esTutor()
+          && resource.data.tutorUid == uid()
+          && resource.data.estado == 'publicada'
+          && request.resource.data.estado == 'realizada'
+          && request.time >= resource.data.inicio + duration.value(1, 'h')
+          && soloCambian(['estado', 'actualizadoEn']))
+        // Coordinación cierra una sesión realizada.
+        || (esCoordinador()
+          && resource.data.estado == 'realizada'
+          && request.resource.data.estado == 'cerrada'
+          && soloCambian(['estado', 'actualizadoEn']))
+        // Estudiante ocupa o libera un cupo, solo junto con su inscripción.
+        || (esEstudiante()
+          && resource.data.estado == 'publicada'
+          && request.time < resource.data.inicio
+          && soloCambian(['cuposOcupados'])
+          && cambioDeCupoValido(sesionId));
+
+      allow delete: if false;
+    }
+
+    function cambioDeCupoValido(sesionId) {
+      let antes = resource.data.cuposOcupados;
+      let despues = request.resource.data.cuposOcupados;
+      let estadoDespues = getAfter(rutaInscripcion(sesionId)).data.estado;
+      let estabaConfirmada = exists(rutaInscripcion(sesionId))
+        && get(rutaInscripcion(sesionId)).data.estado == 'confirmada';
+      return (despues == antes + 1
+          && despues <= resource.data.capacidad
+          && estadoDespues == 'confirmada'
+          && !estabaConfirmada)
+        || (despues == antes - 1
+          && estadoDespues == 'cancelada'
+          && estabaConfirmada);
+    }
+
+    // ---------- Franjas de tutor (regla 1: sin dos sesiones a la misma hora) ----------
+    match /franjas/{franjaId} {
+      allow read: if autenticado();
+      // Solo se crean; nunca se sobrescriben. Si ya existe, la publicación falla.
+      allow create: if esCoordinador()
+        && franjaId == request.resource.data.tutorUid + '_'
+          + string(get(rutaSesion(request.resource.data.sesionId)).data.inicio.toMillis())
+        && get(rutaSesion(request.resource.data.sesionId)).data.tutorUid == request.resource.data.tutorUid;
+      allow update, delete: if false;
+    }
+
+    // ---------- Inscripciones ----------
+    match /inscripciones/{inscripcionId} {
+      // La transacción de confirmación lee su propia inscripción antes de
+      // que exista: se permite si el id corresponde al mismo estudiante.
+      allow read: if autenticado()
+        && ((resource == null && inscripcionId.matches('.+_' + uid()))
+          || (resource != null
+            && (resource.data.estudianteUid == uid()
+              || resource.data.tutorUid == uid()
+              || esCoordinador())));
+
+      // Regla 2/3: confirmar con cupo, id único por estudiante y sesión,
+      // y el contador de la sesión aumenta en la misma transacción.
+      allow create: if esEstudiante()
+        && inscripcionId == request.resource.data.sesionId + '_' + uid()
+        && request.resource.data.estudianteUid == uid()
+        && request.resource.data.estado == 'confirmada'
+        && request.resource.data.tutorUid == get(rutaSesion(request.resource.data.sesionId)).data.tutorUid
+        && getAfter(rutaSesion(request.resource.data.sesionId)).data.cuposOcupados
+          == get(rutaSesion(request.resource.data.sesionId)).data.cuposOcupados + 1;
+
+      allow update: if
+        // Estudiante: reactiva una cancelada o cancela una confirmada, con
+        // el contador ajustado en la misma transacción.
+        (esEstudiante()
+          && resource.data.estudianteUid == uid()
+          && soloCambian(['estado', 'actualizadoEn', 'estudianteNombre', 'asignaturaNombre', 'inicioSesion', 'tutorUid', 'sesionId', 'estudianteUid'])
+          && request.resource.data.sesionId == resource.data.sesionId
+          && request.resource.data.estudianteUid == resource.data.estudianteUid
+          && request.resource.data.tutorUid == resource.data.tutorUid
+          && (
+            (resource.data.estado == 'cancelada'
+              && request.resource.data.estado == 'confirmada'
+              && getAfter(rutaSesion(resource.data.sesionId)).data.cuposOcupados
+                == get(rutaSesion(resource.data.sesionId)).data.cuposOcupados + 1)
+            || (resource.data.estado == 'confirmada'
+              && request.resource.data.estado == 'cancelada'
+              && getAfter(rutaSesion(resource.data.sesionId)).data.cuposOcupados
+                == get(rutaSesion(resource.data.sesionId)).data.cuposOcupados - 1)
+          ))
+        // Regla 4: solo el tutor de la sesión registra asistencia, tras el inicio.
+        || (esTutor()
+          && resource.data.tutorUid == uid()
+          && resource.data.estado in ['confirmada', 'asistio', 'noAsistio']
+          && request.resource.data.estado in ['asistio', 'noAsistio']
+          && soloCambian(['estado', 'actualizadoEn'])
+          && request.time >= get(rutaSesion(resource.data.sesionId)).data.inicio
+          && get(rutaSesion(resource.data.sesionId)).data.estado in ['publicada', 'realizada']);
+
+      allow delete: if false;
+    }
+  }
+}

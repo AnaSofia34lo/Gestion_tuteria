@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "27054518300",
+    "project_id": "gestion-tutorias-g61-5",
+    "storage_bucket": "gestion-tutorias-g61-5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:27054518300:android:74ecc40eec6e23b11bafd9",
+        "android_client_info": {
+          "package_name": "co.edu.udem.gestion_tutorias"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQzh_a9PQ0soRMkU-ugxL8v0sHCOINHJw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
