@@ -20,19 +20,22 @@ class ReglasTutoria {
   static void _transicion(EstadoSesion desde, EstadoSesion hacia) {
     if (!desde.puedePasarA(hacia)) {
       throw ReglaNegocioException(
-        'No se puede pasar una sesión de ${desde.name} a ${hacia.name}',
+        'Una sesión ${desde.etiqueta.toLowerCase()} no puede pasar a '
+        '${hacia.etiqueta.toLowerCase()}',
       );
     }
   }
 
-  /// Regla 1: solo se publica una sesión futura, con capacidad entre 1 y 10,
-  /// tutor asignado y sin choque con otra sesión publicada del mismo tutor.
-  static Sesion publicar(
-    Sesion sesion, {
-    required List<Sesion> sesionesDelTutor,
-    required DateTime ahora,
-  }) {
-    _transicion(sesion.estado, EstadoSesion.publicada);
+  /// Validaciones de la propuesta que crea el tutor: las mismas condiciones
+  /// de la regla 1 que no dependen de otras sesiones.
+  static void validarPropuesta(Sesion sesion, {required DateTime ahora}) {
+    if (sesion.estado != EstadoSesion.propuesta) {
+      throw const ReglaNegocioException('La sesión nueva debe ser propuesta');
+    }
+    _validarDatosBasicos(sesion, ahora);
+  }
+
+  static void _validarDatosBasicos(Sesion sesion, DateTime ahora) {
     if (sesion.tutorUid.trim().isEmpty) {
       throw const ReglaNegocioException('La sesión no tiene tutor asignado');
     }
@@ -50,6 +53,17 @@ class ReglasTutoria {
         'La capacidad debe estar entre 1 y 10 estudiantes',
       );
     }
+  }
+
+  /// Regla 1: solo se publica una sesión futura, con capacidad entre 1 y 10,
+  /// tutor asignado y sin choque con otra sesión publicada del mismo tutor.
+  static Sesion publicar(
+    Sesion sesion, {
+    required List<Sesion> sesionesDelTutor,
+    required DateTime ahora,
+  }) {
+    _transicion(sesion.estado, EstadoSesion.publicada);
+    _validarDatosBasicos(sesion, ahora);
     final choque = sesionesDelTutor.any(
       (otra) =>
           otra.id != sesion.id &&
@@ -177,6 +191,26 @@ class ReglasTutoria {
       updatedAt: ahora,
       pendingSync: true,
     );
+  }
+
+  /// El tutor marca la sesión como realizada cuando terminó su franja.
+  static Sesion marcarRealizada(
+    Sesion sesion, {
+    required String actorUid,
+    required DateTime ahora,
+  }) {
+    if (actorUid != sesion.tutorUid) {
+      throw const ReglaNegocioException(
+        'Solo el tutor de la sesión puede marcarla realizada',
+      );
+    }
+    _transicion(sesion.estado, EstadoSesion.realizada);
+    if (!sesion.haTerminado(ahora)) {
+      throw const ReglaNegocioException(
+        'La sesión se marca realizada cuando termine su franja',
+      );
+    }
+    return sesion.copyWith(estado: EstadoSesion.realizada);
   }
 
   /// Regla 4: la coordinación cierra cuando la sesión terminó y todos los

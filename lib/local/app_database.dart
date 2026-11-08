@@ -15,7 +15,20 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, from, to) async {
+      // v2 agrega los datos de la sesión y del tutor a cada inscripción.
+      if (from < 2) {
+        await m.addColumn(inscripciones, inscripciones.estudianteNombre);
+        await m.addColumn(inscripciones, inscripciones.tutorUid);
+        await m.addColumn(inscripciones, inscripciones.asignaturaNombre);
+        await m.addColumn(inscripciones, inscripciones.inicioSesion);
+      }
+    },
+  );
 }
 
 LazyDatabase _openConnection() {

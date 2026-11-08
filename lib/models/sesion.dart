@@ -15,12 +15,20 @@ enum EstadoSesion {
   /// Transiciones permitidas. Rechazada y cerrada son terminales.
   Set<EstadoSesion> get siguientes => switch (this) {
     EstadoSesion.propuesta => {EstadoSesion.publicada, EstadoSesion.rechazada},
-    EstadoSesion.publicada => {EstadoSesion.realizada, EstadoSesion.cerrada},
+    EstadoSesion.publicada => {EstadoSesion.realizada},
     EstadoSesion.realizada => {EstadoSesion.cerrada},
     EstadoSesion.rechazada || EstadoSesion.cerrada => const {},
   };
 
   bool puedePasarA(EstadoSesion destino) => siguientes.contains(destino);
+
+  String get etiqueta => switch (this) {
+    EstadoSesion.propuesta => 'Propuesta',
+    EstadoSesion.publicada => 'Publicada',
+    EstadoSesion.rechazada => 'Rechazada',
+    EstadoSesion.realizada => 'Realizada',
+    EstadoSesion.cerrada => 'Cerrada',
+  };
 }
 
 /// Sesión de tutoría en una franja fija de una hora.
@@ -34,20 +42,26 @@ class Sesion {
 
   final String id;
   final String asignaturaId;
+  final String asignaturaNombre;
   final String tutorUid;
+  final String tutorNombre;
   final DateTime inicio;
   final int capacidad;
   final int cuposOcupados;
   final EstadoSesion estado;
+  final String? motivoRechazo;
 
   const Sesion({
     required this.id,
     required this.asignaturaId,
+    this.asignaturaNombre = '',
     required this.tutorUid,
+    this.tutorNombre = '',
     required this.inicio,
     required this.capacidad,
     this.cuposOcupados = 0,
     this.estado = EstadoSesion.propuesta,
+    this.motivoRechazo,
   });
 
   DateTime get fin => inicio.add(duracion);
@@ -59,33 +73,25 @@ class Sesion {
   bool get esFranjaFija =>
       inicio.minute == 0 && inicio.second == 0 && inicio.millisecond == 0;
 
-  Sesion copyWith({EstadoSesion? estado, int? cuposOcupados}) => Sesion(
+  /// Clave única de la franja de un tutor. Firestore la usa como id del
+  /// documento `franjas/{clave}` para impedir dos sesiones publicadas del
+  /// mismo tutor en la misma hora.
+  String get claveFranja => '${tutorUid}_${inicio.millisecondsSinceEpoch}';
+
+  Sesion copyWith({
+    EstadoSesion? estado,
+    int? cuposOcupados,
+    String? motivoRechazo,
+  }) => Sesion(
     id: id,
     asignaturaId: asignaturaId,
+    asignaturaNombre: asignaturaNombre,
     tutorUid: tutorUid,
+    tutorNombre: tutorNombre,
     inicio: inicio,
     capacidad: capacidad,
     cuposOcupados: cuposOcupados ?? this.cuposOcupados,
     estado: estado ?? this.estado,
+    motivoRechazo: motivoRechazo ?? this.motivoRechazo,
   );
-
-  factory Sesion.fromJson(Map<String, dynamic> json) => Sesion(
-    id: json['id'] as String,
-    asignaturaId: json['asignaturaId'] as String,
-    tutorUid: json['tutorUid'] as String,
-    inicio: DateTime.parse(json['inicio'] as String),
-    capacidad: json['capacidad'] as int,
-    cuposOcupados: (json['cuposOcupados'] as int?) ?? 0,
-    estado: EstadoSesion.fromName(json['estado'] as String),
-  );
-
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'asignaturaId': asignaturaId,
-    'tutorUid': tutorUid,
-    'inicio': inicio.toUtc().toIso8601String(),
-    'capacidad': capacidad,
-    'cuposOcupados': cuposOcupados,
-    'estado': estado.name,
-  };
 }

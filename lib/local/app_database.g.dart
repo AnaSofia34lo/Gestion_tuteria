@@ -40,6 +40,30 @@ class $InscripcionesTable extends Inscripciones
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _estudianteNombreMeta = const VerificationMeta(
+    'estudianteNombre',
+  );
+  @override
+  late final GeneratedColumn<String> estudianteNombre = GeneratedColumn<String>(
+    'estudiante_nombre',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _tutorUidMeta = const VerificationMeta(
+    'tutorUid',
+  );
+  @override
+  late final GeneratedColumn<String> tutorUid = GeneratedColumn<String>(
+    'tutor_uid',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _estadoMeta = const VerificationMeta('estado');
   @override
   late final GeneratedColumn<String> estado = GeneratedColumn<String>(
@@ -59,6 +83,29 @@ class $InscripcionesTable extends Inscripciones
     false,
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
+  );
+  static const VerificationMeta _asignaturaNombreMeta = const VerificationMeta(
+    'asignaturaNombre',
+  );
+  @override
+  late final GeneratedColumn<String> asignaturaNombre = GeneratedColumn<String>(
+    'asignatura_nombre',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _inicioSesionMeta = const VerificationMeta(
+    'inicioSesion',
+  );
+  @override
+  late final GeneratedColumn<DateTime> inicioSesion = GeneratedColumn<DateTime>(
+    'inicio_sesion',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _pendingSyncMeta = const VerificationMeta(
     'pendingSync',
@@ -91,8 +138,12 @@ class $InscripcionesTable extends Inscripciones
     id,
     sesionId,
     estudianteUid,
+    estudianteNombre,
+    tutorUid,
     estado,
     updatedAt,
+    asignaturaNombre,
+    inicioSesion,
     pendingSync,
     ultimoError,
   ];
@@ -132,6 +183,21 @@ class $InscripcionesTable extends Inscripciones
     } else if (isInserting) {
       context.missing(_estudianteUidMeta);
     }
+    if (data.containsKey('estudiante_nombre')) {
+      context.handle(
+        _estudianteNombreMeta,
+        estudianteNombre.isAcceptableOrUnknown(
+          data['estudiante_nombre']!,
+          _estudianteNombreMeta,
+        ),
+      );
+    }
+    if (data.containsKey('tutor_uid')) {
+      context.handle(
+        _tutorUidMeta,
+        tutorUid.isAcceptableOrUnknown(data['tutor_uid']!, _tutorUidMeta),
+      );
+    }
     if (data.containsKey('estado')) {
       context.handle(
         _estadoMeta,
@@ -147,6 +213,24 @@ class $InscripcionesTable extends Inscripciones
       );
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('asignatura_nombre')) {
+      context.handle(
+        _asignaturaNombreMeta,
+        asignaturaNombre.isAcceptableOrUnknown(
+          data['asignatura_nombre']!,
+          _asignaturaNombreMeta,
+        ),
+      );
+    }
+    if (data.containsKey('inicio_sesion')) {
+      context.handle(
+        _inicioSesionMeta,
+        inicioSesion.isAcceptableOrUnknown(
+          data['inicio_sesion']!,
+          _inicioSesionMeta,
+        ),
+      );
     }
     if (data.containsKey('pending_sync')) {
       context.handle(
@@ -187,6 +271,14 @@ class $InscripcionesTable extends Inscripciones
         DriftSqlType.string,
         data['${effectivePrefix}estudiante_uid'],
       )!,
+      estudianteNombre: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}estudiante_nombre'],
+      )!,
+      tutorUid: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}tutor_uid'],
+      )!,
       estado: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}estado'],
@@ -195,6 +287,14 @@ class $InscripcionesTable extends Inscripciones
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
       )!,
+      asignaturaNombre: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}asignatura_nombre'],
+      )!,
+      inicioSesion: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}inicio_sesion'],
+      ),
       pendingSync: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}pending_sync'],
@@ -216,16 +316,24 @@ class InscripcionRow extends DataClass implements Insertable<InscripcionRow> {
   final String id;
   final String sesionId;
   final String estudianteUid;
+  final String estudianteNombre;
+  final String tutorUid;
   final String estado;
   final DateTime updatedAt;
+  final String asignaturaNombre;
+  final DateTime? inicioSesion;
   final bool pendingSync;
   final String? ultimoError;
   const InscripcionRow({
     required this.id,
     required this.sesionId,
     required this.estudianteUid,
+    required this.estudianteNombre,
+    required this.tutorUid,
     required this.estado,
     required this.updatedAt,
+    required this.asignaturaNombre,
+    this.inicioSesion,
     required this.pendingSync,
     this.ultimoError,
   });
@@ -235,8 +343,14 @@ class InscripcionRow extends DataClass implements Insertable<InscripcionRow> {
     map['id'] = Variable<String>(id);
     map['sesion_id'] = Variable<String>(sesionId);
     map['estudiante_uid'] = Variable<String>(estudianteUid);
+    map['estudiante_nombre'] = Variable<String>(estudianteNombre);
+    map['tutor_uid'] = Variable<String>(tutorUid);
     map['estado'] = Variable<String>(estado);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    map['asignatura_nombre'] = Variable<String>(asignaturaNombre);
+    if (!nullToAbsent || inicioSesion != null) {
+      map['inicio_sesion'] = Variable<DateTime>(inicioSesion);
+    }
     map['pending_sync'] = Variable<bool>(pendingSync);
     if (!nullToAbsent || ultimoError != null) {
       map['ultimo_error'] = Variable<String>(ultimoError);
@@ -249,8 +363,14 @@ class InscripcionRow extends DataClass implements Insertable<InscripcionRow> {
       id: Value(id),
       sesionId: Value(sesionId),
       estudianteUid: Value(estudianteUid),
+      estudianteNombre: Value(estudianteNombre),
+      tutorUid: Value(tutorUid),
       estado: Value(estado),
       updatedAt: Value(updatedAt),
+      asignaturaNombre: Value(asignaturaNombre),
+      inicioSesion: inicioSesion == null && nullToAbsent
+          ? const Value.absent()
+          : Value(inicioSesion),
       pendingSync: Value(pendingSync),
       ultimoError: ultimoError == null && nullToAbsent
           ? const Value.absent()
@@ -267,8 +387,12 @@ class InscripcionRow extends DataClass implements Insertable<InscripcionRow> {
       id: serializer.fromJson<String>(json['id']),
       sesionId: serializer.fromJson<String>(json['sesionId']),
       estudianteUid: serializer.fromJson<String>(json['estudianteUid']),
+      estudianteNombre: serializer.fromJson<String>(json['estudianteNombre']),
+      tutorUid: serializer.fromJson<String>(json['tutorUid']),
       estado: serializer.fromJson<String>(json['estado']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      asignaturaNombre: serializer.fromJson<String>(json['asignaturaNombre']),
+      inicioSesion: serializer.fromJson<DateTime?>(json['inicioSesion']),
       pendingSync: serializer.fromJson<bool>(json['pendingSync']),
       ultimoError: serializer.fromJson<String?>(json['ultimoError']),
     );
@@ -280,8 +404,12 @@ class InscripcionRow extends DataClass implements Insertable<InscripcionRow> {
       'id': serializer.toJson<String>(id),
       'sesionId': serializer.toJson<String>(sesionId),
       'estudianteUid': serializer.toJson<String>(estudianteUid),
+      'estudianteNombre': serializer.toJson<String>(estudianteNombre),
+      'tutorUid': serializer.toJson<String>(tutorUid),
       'estado': serializer.toJson<String>(estado),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'asignaturaNombre': serializer.toJson<String>(asignaturaNombre),
+      'inicioSesion': serializer.toJson<DateTime?>(inicioSesion),
       'pendingSync': serializer.toJson<bool>(pendingSync),
       'ultimoError': serializer.toJson<String?>(ultimoError),
     };
@@ -291,16 +419,24 @@ class InscripcionRow extends DataClass implements Insertable<InscripcionRow> {
     String? id,
     String? sesionId,
     String? estudianteUid,
+    String? estudianteNombre,
+    String? tutorUid,
     String? estado,
     DateTime? updatedAt,
+    String? asignaturaNombre,
+    Value<DateTime?> inicioSesion = const Value.absent(),
     bool? pendingSync,
     Value<String?> ultimoError = const Value.absent(),
   }) => InscripcionRow(
     id: id ?? this.id,
     sesionId: sesionId ?? this.sesionId,
     estudianteUid: estudianteUid ?? this.estudianteUid,
+    estudianteNombre: estudianteNombre ?? this.estudianteNombre,
+    tutorUid: tutorUid ?? this.tutorUid,
     estado: estado ?? this.estado,
     updatedAt: updatedAt ?? this.updatedAt,
+    asignaturaNombre: asignaturaNombre ?? this.asignaturaNombre,
+    inicioSesion: inicioSesion.present ? inicioSesion.value : this.inicioSesion,
     pendingSync: pendingSync ?? this.pendingSync,
     ultimoError: ultimoError.present ? ultimoError.value : this.ultimoError,
   );
@@ -311,8 +447,18 @@ class InscripcionRow extends DataClass implements Insertable<InscripcionRow> {
       estudianteUid: data.estudianteUid.present
           ? data.estudianteUid.value
           : this.estudianteUid,
+      estudianteNombre: data.estudianteNombre.present
+          ? data.estudianteNombre.value
+          : this.estudianteNombre,
+      tutorUid: data.tutorUid.present ? data.tutorUid.value : this.tutorUid,
       estado: data.estado.present ? data.estado.value : this.estado,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      asignaturaNombre: data.asignaturaNombre.present
+          ? data.asignaturaNombre.value
+          : this.asignaturaNombre,
+      inicioSesion: data.inicioSesion.present
+          ? data.inicioSesion.value
+          : this.inicioSesion,
       pendingSync: data.pendingSync.present
           ? data.pendingSync.value
           : this.pendingSync,
@@ -328,8 +474,12 @@ class InscripcionRow extends DataClass implements Insertable<InscripcionRow> {
           ..write('id: $id, ')
           ..write('sesionId: $sesionId, ')
           ..write('estudianteUid: $estudianteUid, ')
+          ..write('estudianteNombre: $estudianteNombre, ')
+          ..write('tutorUid: $tutorUid, ')
           ..write('estado: $estado, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('asignaturaNombre: $asignaturaNombre, ')
+          ..write('inicioSesion: $inicioSesion, ')
           ..write('pendingSync: $pendingSync, ')
           ..write('ultimoError: $ultimoError')
           ..write(')'))
@@ -341,8 +491,12 @@ class InscripcionRow extends DataClass implements Insertable<InscripcionRow> {
     id,
     sesionId,
     estudianteUid,
+    estudianteNombre,
+    tutorUid,
     estado,
     updatedAt,
+    asignaturaNombre,
+    inicioSesion,
     pendingSync,
     ultimoError,
   );
@@ -353,8 +507,12 @@ class InscripcionRow extends DataClass implements Insertable<InscripcionRow> {
           other.id == this.id &&
           other.sesionId == this.sesionId &&
           other.estudianteUid == this.estudianteUid &&
+          other.estudianteNombre == this.estudianteNombre &&
+          other.tutorUid == this.tutorUid &&
           other.estado == this.estado &&
           other.updatedAt == this.updatedAt &&
+          other.asignaturaNombre == this.asignaturaNombre &&
+          other.inicioSesion == this.inicioSesion &&
           other.pendingSync == this.pendingSync &&
           other.ultimoError == this.ultimoError);
 }
@@ -363,8 +521,12 @@ class InscripcionesCompanion extends UpdateCompanion<InscripcionRow> {
   final Value<String> id;
   final Value<String> sesionId;
   final Value<String> estudianteUid;
+  final Value<String> estudianteNombre;
+  final Value<String> tutorUid;
   final Value<String> estado;
   final Value<DateTime> updatedAt;
+  final Value<String> asignaturaNombre;
+  final Value<DateTime?> inicioSesion;
   final Value<bool> pendingSync;
   final Value<String?> ultimoError;
   final Value<int> rowid;
@@ -372,8 +534,12 @@ class InscripcionesCompanion extends UpdateCompanion<InscripcionRow> {
     this.id = const Value.absent(),
     this.sesionId = const Value.absent(),
     this.estudianteUid = const Value.absent(),
+    this.estudianteNombre = const Value.absent(),
+    this.tutorUid = const Value.absent(),
     this.estado = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.asignaturaNombre = const Value.absent(),
+    this.inicioSesion = const Value.absent(),
     this.pendingSync = const Value.absent(),
     this.ultimoError = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -382,8 +548,12 @@ class InscripcionesCompanion extends UpdateCompanion<InscripcionRow> {
     required String id,
     required String sesionId,
     required String estudianteUid,
+    this.estudianteNombre = const Value.absent(),
+    this.tutorUid = const Value.absent(),
     required String estado,
     required DateTime updatedAt,
+    this.asignaturaNombre = const Value.absent(),
+    this.inicioSesion = const Value.absent(),
     this.pendingSync = const Value.absent(),
     this.ultimoError = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -396,8 +566,12 @@ class InscripcionesCompanion extends UpdateCompanion<InscripcionRow> {
     Expression<String>? id,
     Expression<String>? sesionId,
     Expression<String>? estudianteUid,
+    Expression<String>? estudianteNombre,
+    Expression<String>? tutorUid,
     Expression<String>? estado,
     Expression<DateTime>? updatedAt,
+    Expression<String>? asignaturaNombre,
+    Expression<DateTime>? inicioSesion,
     Expression<bool>? pendingSync,
     Expression<String>? ultimoError,
     Expression<int>? rowid,
@@ -406,8 +580,12 @@ class InscripcionesCompanion extends UpdateCompanion<InscripcionRow> {
       if (id != null) 'id': id,
       if (sesionId != null) 'sesion_id': sesionId,
       if (estudianteUid != null) 'estudiante_uid': estudianteUid,
+      if (estudianteNombre != null) 'estudiante_nombre': estudianteNombre,
+      if (tutorUid != null) 'tutor_uid': tutorUid,
       if (estado != null) 'estado': estado,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (asignaturaNombre != null) 'asignatura_nombre': asignaturaNombre,
+      if (inicioSesion != null) 'inicio_sesion': inicioSesion,
       if (pendingSync != null) 'pending_sync': pendingSync,
       if (ultimoError != null) 'ultimo_error': ultimoError,
       if (rowid != null) 'rowid': rowid,
@@ -418,8 +596,12 @@ class InscripcionesCompanion extends UpdateCompanion<InscripcionRow> {
     Value<String>? id,
     Value<String>? sesionId,
     Value<String>? estudianteUid,
+    Value<String>? estudianteNombre,
+    Value<String>? tutorUid,
     Value<String>? estado,
     Value<DateTime>? updatedAt,
+    Value<String>? asignaturaNombre,
+    Value<DateTime?>? inicioSesion,
     Value<bool>? pendingSync,
     Value<String?>? ultimoError,
     Value<int>? rowid,
@@ -428,8 +610,12 @@ class InscripcionesCompanion extends UpdateCompanion<InscripcionRow> {
       id: id ?? this.id,
       sesionId: sesionId ?? this.sesionId,
       estudianteUid: estudianteUid ?? this.estudianteUid,
+      estudianteNombre: estudianteNombre ?? this.estudianteNombre,
+      tutorUid: tutorUid ?? this.tutorUid,
       estado: estado ?? this.estado,
       updatedAt: updatedAt ?? this.updatedAt,
+      asignaturaNombre: asignaturaNombre ?? this.asignaturaNombre,
+      inicioSesion: inicioSesion ?? this.inicioSesion,
       pendingSync: pendingSync ?? this.pendingSync,
       ultimoError: ultimoError ?? this.ultimoError,
       rowid: rowid ?? this.rowid,
@@ -448,11 +634,23 @@ class InscripcionesCompanion extends UpdateCompanion<InscripcionRow> {
     if (estudianteUid.present) {
       map['estudiante_uid'] = Variable<String>(estudianteUid.value);
     }
+    if (estudianteNombre.present) {
+      map['estudiante_nombre'] = Variable<String>(estudianteNombre.value);
+    }
+    if (tutorUid.present) {
+      map['tutor_uid'] = Variable<String>(tutorUid.value);
+    }
     if (estado.present) {
       map['estado'] = Variable<String>(estado.value);
     }
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (asignaturaNombre.present) {
+      map['asignatura_nombre'] = Variable<String>(asignaturaNombre.value);
+    }
+    if (inicioSesion.present) {
+      map['inicio_sesion'] = Variable<DateTime>(inicioSesion.value);
     }
     if (pendingSync.present) {
       map['pending_sync'] = Variable<bool>(pendingSync.value);
@@ -472,8 +670,12 @@ class InscripcionesCompanion extends UpdateCompanion<InscripcionRow> {
           ..write('id: $id, ')
           ..write('sesionId: $sesionId, ')
           ..write('estudianteUid: $estudianteUid, ')
+          ..write('estudianteNombre: $estudianteNombre, ')
+          ..write('tutorUid: $tutorUid, ')
           ..write('estado: $estado, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('asignaturaNombre: $asignaturaNombre, ')
+          ..write('inicioSesion: $inicioSesion, ')
           ..write('pendingSync: $pendingSync, ')
           ..write('ultimoError: $ultimoError, ')
           ..write('rowid: $rowid')
@@ -498,8 +700,12 @@ typedef $$InscripcionesTableCreateCompanionBuilder =
       required String id,
       required String sesionId,
       required String estudianteUid,
+      Value<String> estudianteNombre,
+      Value<String> tutorUid,
       required String estado,
       required DateTime updatedAt,
+      Value<String> asignaturaNombre,
+      Value<DateTime?> inicioSesion,
       Value<bool> pendingSync,
       Value<String?> ultimoError,
       Value<int> rowid,
@@ -509,8 +715,12 @@ typedef $$InscripcionesTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> sesionId,
       Value<String> estudianteUid,
+      Value<String> estudianteNombre,
+      Value<String> tutorUid,
       Value<String> estado,
       Value<DateTime> updatedAt,
+      Value<String> asignaturaNombre,
+      Value<DateTime?> inicioSesion,
       Value<bool> pendingSync,
       Value<String?> ultimoError,
       Value<int> rowid,
@@ -540,6 +750,16 @@ class $$InscripcionesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get estudianteNombre => $composableBuilder(
+    column: $table.estudianteNombre,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get tutorUid => $composableBuilder(
+    column: $table.tutorUid,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get estado => $composableBuilder(
     column: $table.estado,
     builder: (column) => ColumnFilters(column),
@@ -547,6 +767,16 @@ class $$InscripcionesTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get asignaturaNombre => $composableBuilder(
+    column: $table.asignaturaNombre,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get inicioSesion => $composableBuilder(
+    column: $table.inicioSesion,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -585,6 +815,16 @@ class $$InscripcionesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get estudianteNombre => $composableBuilder(
+    column: $table.estudianteNombre,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get tutorUid => $composableBuilder(
+    column: $table.tutorUid,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get estado => $composableBuilder(
     column: $table.estado,
     builder: (column) => ColumnOrderings(column),
@@ -592,6 +832,16 @@ class $$InscripcionesTableOrderingComposer
 
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get asignaturaNombre => $composableBuilder(
+    column: $table.asignaturaNombre,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get inicioSesion => $composableBuilder(
+    column: $table.inicioSesion,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -626,11 +876,29 @@ class $$InscripcionesTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get estudianteNombre => $composableBuilder(
+    column: $table.estudianteNombre,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get tutorUid =>
+      $composableBuilder(column: $table.tutorUid, builder: (column) => column);
+
   GeneratedColumn<String> get estado =>
       $composableBuilder(column: $table.estado, builder: (column) => column);
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<String> get asignaturaNombre => $composableBuilder(
+    column: $table.asignaturaNombre,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get inicioSesion => $composableBuilder(
+    column: $table.inicioSesion,
+    builder: (column) => column,
+  );
 
   GeneratedColumn<bool> get pendingSync => $composableBuilder(
     column: $table.pendingSync,
@@ -677,8 +945,12 @@ class $$InscripcionesTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> sesionId = const Value.absent(),
                 Value<String> estudianteUid = const Value.absent(),
+                Value<String> estudianteNombre = const Value.absent(),
+                Value<String> tutorUid = const Value.absent(),
                 Value<String> estado = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
+                Value<String> asignaturaNombre = const Value.absent(),
+                Value<DateTime?> inicioSesion = const Value.absent(),
                 Value<bool> pendingSync = const Value.absent(),
                 Value<String?> ultimoError = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -686,8 +958,12 @@ class $$InscripcionesTableTableManager
                 id: id,
                 sesionId: sesionId,
                 estudianteUid: estudianteUid,
+                estudianteNombre: estudianteNombre,
+                tutorUid: tutorUid,
                 estado: estado,
                 updatedAt: updatedAt,
+                asignaturaNombre: asignaturaNombre,
+                inicioSesion: inicioSesion,
                 pendingSync: pendingSync,
                 ultimoError: ultimoError,
                 rowid: rowid,
@@ -697,8 +973,12 @@ class $$InscripcionesTableTableManager
                 required String id,
                 required String sesionId,
                 required String estudianteUid,
+                Value<String> estudianteNombre = const Value.absent(),
+                Value<String> tutorUid = const Value.absent(),
                 required String estado,
                 required DateTime updatedAt,
+                Value<String> asignaturaNombre = const Value.absent(),
+                Value<DateTime?> inicioSesion = const Value.absent(),
                 Value<bool> pendingSync = const Value.absent(),
                 Value<String?> ultimoError = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -706,8 +986,12 @@ class $$InscripcionesTableTableManager
                 id: id,
                 sesionId: sesionId,
                 estudianteUid: estudianteUid,
+                estudianteNombre: estudianteNombre,
+                tutorUid: tutorUid,
                 estado: estado,
                 updatedAt: updatedAt,
+                asignaturaNombre: asignaturaNombre,
+                inicioSesion: inicioSesion,
                 pendingSync: pendingSync,
                 ultimoError: ultimoError,
                 rowid: rowid,

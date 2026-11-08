@@ -1,5 +1,3 @@
-import 'dart:math';
-
 /// SOLICITADA → CONFIRMADA → ASISTIO | NO_ASISTIO.
 /// El estudiante puede CANCELAR antes del inicio. RECHAZADA indica que el
 /// servidor no confirmó (sin cupo, sesión iniciada...).
@@ -25,16 +23,32 @@ enum EstadoInscripcion {
 
   bool get tieneAsistencia =>
       this == EstadoInscripcion.asistio || this == EstadoInscripcion.noAsistio;
+
+  String get etiqueta => switch (this) {
+    EstadoInscripcion.solicitada => 'Solicitada',
+    EstadoInscripcion.confirmada => 'Confirmada',
+    EstadoInscripcion.cancelada => 'Cancelada',
+    EstadoInscripcion.rechazada => 'Rechazada',
+    EstadoInscripcion.asistio => 'Asistió',
+    EstadoInscripcion.noAsistio => 'No asistió',
+  };
 }
 
 class Inscripcion {
-  /// Identidad estable creada antes del primer envío y reutilizada en los
-  /// reintentos para no duplicar la solicitud en Firestore.
+  /// Identidad estable `sesionId_estudianteUid`: se crea antes del primer
+  /// envío y se reutiliza en los reintentos, así Firestore nunca guarda dos
+  /// inscripciones del mismo estudiante en la misma sesión.
   final String id;
   final String sesionId;
   final String estudianteUid;
+  final String estudianteNombre;
+  final String tutorUid;
   final EstadoInscripcion estado;
   final DateTime updatedAt;
+
+  /// Copia de datos de la sesión para mostrar "Mis inscripciones" sin red.
+  final String asignaturaNombre;
+  final DateTime? inicioSesion;
 
   /// Estado de sincronización, separado del estado del negocio: una solicitud
   /// pendiente NO es una plaza garantizada.
@@ -45,39 +59,36 @@ class Inscripcion {
     required this.id,
     required this.sesionId,
     required this.estudianteUid,
+    this.estudianteNombre = '',
+    this.tutorUid = '',
     required this.estado,
     required this.updatedAt,
+    this.asignaturaNombre = '',
+    this.inicioSesion,
     this.pendingSync = true,
     this.ultimoError,
   });
 
-  static String nuevoId([Random? random]) {
-    final r = random ?? Random.secure();
-    final bytes = List<int>.generate(16, (_) => r.nextInt(256));
-    return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-  }
+  static String idPara(String sesionId, String estudianteUid) =>
+      '${sesionId}_$estudianteUid';
 
   Inscripcion copyWith({
     EstadoInscripcion? estado,
     DateTime? updatedAt,
     bool? pendingSync,
     String? ultimoError,
+    bool limpiarError = false,
   }) => Inscripcion(
     id: id,
     sesionId: sesionId,
     estudianteUid: estudianteUid,
+    estudianteNombre: estudianteNombre,
+    tutorUid: tutorUid,
     estado: estado ?? this.estado,
     updatedAt: updatedAt ?? this.updatedAt,
+    asignaturaNombre: asignaturaNombre,
+    inicioSesion: inicioSesion,
     pendingSync: pendingSync ?? this.pendingSync,
-    ultimoError: ultimoError ?? this.ultimoError,
+    ultimoError: limpiarError ? null : (ultimoError ?? this.ultimoError),
   );
-
-  // pendingSync y ultimoError son estado local: no viajan a Firestore.
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'sesionId': sesionId,
-    'estudianteUid': estudianteUid,
-    'estado': estado.name,
-    'updatedAt': updatedAt.toUtc().toIso8601String(),
-  };
 }

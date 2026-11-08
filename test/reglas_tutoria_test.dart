@@ -274,7 +274,7 @@ void main() {
       ];
       expect(
         () => ReglasTutoria.cerrar(
-          sesion(),
+          sesion(estado: EstadoSesion.realizada),
           inscripciones: inscritos,
           ahora: despues,
         ),
@@ -283,7 +283,7 @@ void main() {
 
       inscritos[1] = inscripcion('e2', estado: EstadoInscripcion.noAsistio);
       final cerrada = ReglasTutoria.cerrar(
-        sesion(),
+        sesion(estado: EstadoSesion.realizada),
         inscripciones: inscritos,
         ahora: despues,
       );
@@ -293,11 +293,66 @@ void main() {
     test('no se cierra antes de que termine la sesión', () {
       expect(
         () => ReglasTutoria.cerrar(
-          sesion(),
+          sesion(estado: EstadoSesion.realizada),
           inscripciones: const [],
           ahora: manana10.add(const Duration(minutes: 30)),
         ),
         rechazo('haya terminado'),
+      );
+    });
+    test('no se cierra una sesión publicada: primero debe estar realizada', () {
+      expect(
+        () => ReglasTutoria.cerrar(
+          sesion(),
+          inscripciones: const [],
+          ahora: despues,
+        ),
+        rechazo('no puede pasar a cerrada'),
+      );
+    });
+
+    test('solo el tutor marca realizada y cuando termina la franja', () {
+      expect(
+        () => ReglasTutoria.marcarRealizada(
+          sesion(),
+          actorUid: 'otro',
+          ahora: despues,
+        ),
+        rechazo('Solo el tutor'),
+      );
+      expect(
+        () => ReglasTutoria.marcarRealizada(
+          sesion(),
+          actorUid: 'tutor-1',
+          ahora: manana10.add(const Duration(minutes: 30)),
+        ),
+        rechazo('cuando termine'),
+      );
+      final realizada = ReglasTutoria.marcarRealizada(
+        sesion(),
+        actorUid: 'tutor-1',
+        ahora: despues,
+      );
+      expect(realizada.estado, EstadoSesion.realizada);
+    });
+  });
+
+  group('Propuesta del tutor', () {
+    test('valida franja, capacidad y fecha antes de crearla', () {
+      ReglasTutoria.validarPropuesta(
+        sesion(estado: EstadoSesion.propuesta),
+        ahora: ahora,
+      );
+      expect(
+        () => ReglasTutoria.validarPropuesta(
+          sesion(estado: EstadoSesion.propuesta, capacidad: 12),
+          ahora: ahora,
+        ),
+        rechazo('entre 1 y 10'),
+      );
+      expect(
+        () => ReglasTutoria.validarPropuesta(sesion(), ahora: ahora),
+        rechazo('debe ser propuesta'),
       );
     });
   });

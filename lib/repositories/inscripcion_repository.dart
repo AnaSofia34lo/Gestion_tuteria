@@ -4,6 +4,7 @@ import 'package:gestion_tutorias/core/app_logger.dart';
 import 'package:gestion_tutorias/core/reglas_tutoria.dart';
 import 'package:gestion_tutorias/local/inscripcion_local_data_source.dart';
 import 'package:gestion_tutorias/models/inscripcion.dart';
+import 'package:gestion_tutorias/models/perfil.dart';
 import 'package:gestion_tutorias/models/sesion.dart';
 import 'package:gestion_tutorias/remote/inscripcion_remote_data_source.dart';
 
@@ -17,6 +18,15 @@ class ResultadoSync {
     this.rechazadas = 0,
     this.pendientes = 0,
   });
+
+  String get resumen {
+    final partes = <String>[
+      if (confirmadas > 0) '$confirmadas confirmada(s)',
+      if (rechazadas > 0) '$rechazadas rechazada(s)',
+      if (pendientes > 0) '$pendientes pendiente(s) sin conexión',
+    ];
+    return partes.isEmpty ? 'No hay solicitudes pendientes' : partes.join(', ');
+  }
 }
 
 /// Local-first para solicitudes de inscripción:
@@ -40,25 +50,37 @@ class InscripcionRepository {
   Future<List<Inscripcion>> misInscripciones(String uid) =>
       local.delEstudiante(uid);
 
+  Stream<List<Inscripcion>> observarMisInscripciones(String uid) =>
+      local.observarDelEstudiante(uid);
+
   /// Funciona sin conexión. Devuelve la inscripción pendiente: mostrarla no
   /// equivale a tener la plaza garantizada.
   Future<Inscripcion> solicitar({
     required Sesion sesion,
-    required String estudianteUid,
+    required Perfil estudiante,
   }) async {
+    if (estudiante.rol != Rol.estudiante) {
+      throw const ReglaNegocioException(
+        'Solo los estudiantes solicitan inscripción',
+      );
+    }
     final ahora = reloj();
     ReglasTutoria.validarSolicitud(
       sesion,
-      estudianteUid: estudianteUid,
-      inscripcionesDelEstudiante: await local.delEstudiante(estudianteUid),
+      estudianteUid: estudiante.uid,
+      inscripcionesDelEstudiante: await local.delEstudiante(estudiante.uid),
       ahora: ahora,
     );
     final inscripcion = Inscripcion(
-      id: Inscripcion.nuevoId(),
+      id: Inscripcion.idPara(sesion.id, estudiante.uid),
       sesionId: sesion.id,
-      estudianteUid: estudianteUid,
+      estudianteUid: estudiante.uid,
+      estudianteNombre: estudiante.nombre,
+      tutorUid: sesion.tutorUid,
       estado: EstadoInscripcion.solicitada,
       updatedAt: ahora,
+      asignaturaNombre: sesion.asignaturaNombre,
+      inicioSesion: sesion.inicio,
     );
     await local.guardar(inscripcion);
     AppLogger.debug('Inscripción ${inscripcion.id} guardada localmente');
@@ -112,5 +134,129 @@ class InscripcionRepository {
       rechazadas: rechazadas,
       pendientes: siguenPendientes,
     );
+  }
+
+  /// Trae lo que cambiaron otros roles (asistencia registrada por el tutor).
+  /// Sin conexión se conserva lo que ya hay en Drift.
+  Future<void> refrescarDesdeServidor(String uid) async {
+    final remoteSource = remote;
+    if (remoteSource == null) return;
+    try {
+      final remotas = await remoteSource
+          .delEstudiante(uid)
+          .timeout(syncTimeout);
+      await local.fusionarRemotas(remotas);
+    } catch (error) {
+      AppLogger.warning('No se pudo refrescar inscripciones: $error');
+    }
+  }
+
+  /// Cancelar una solicitud que nunca llegó al servidor es local. Cancelar
+  /// una plaza confirmada requiere conexión porque libera el cupo en
+  /// Firestore de forma atómica.
+  Future<void> cancelar(Inscripcion inscripcion, {Sesion? sesion}) async {
+    final ahora = reloj();
+    final inicio = sesion?.inicio ?? inscripcion.inicioSesion;
+    if (inicio != null && !ahora.isBefore(inicio)) {
+      throw const ReglaNegocioException(
+        'No se puede cancelar después del inicio de la sesión',
+      );
+    }
+    if (inscripcion.estado == EstadoInscripcion.solicitada &&
+        inscripcion.pendingSync) {
+      // Si el envío está en curso, se espera para no cancelar a ciegas.
+      await _syncEnCurso;
+      final actual = await local.porId(inscripcion.id);
+      if (actual != null &&
+          actual.estado == EstadoInscripcion.solicitada &&
+          actual.pendingSync) {
+        await local.guardar(
+          actual.copyWith(
+            estado: EstadoInscripcion.cancelada,
+            updatedAt: ahora,
+            pendingSync: false,
+            limpiarError: true,
+          ),
+        );
+        return;
+      }
+      inscripcion = actual ?? inscripcion;
+    }
+    if (inscripcion.estado != EstadoInscripcion.confirmada) {
+      throw const ReglaNegocioException(
+        'Solo se cancela una inscripción solicitada o confirmada',
+      );
+    }
+    final remoteSource = remote;
+    if (remoteSource == null) {
+      throw const ReglaNegocioException(
+        'Necesitas conexión para liberar una plaza confirmada',
+      );
+    }
+    try {
+      await remoteSource.cancelar(inscripcion).timeout(syncTimeout);
+    } on ReglaNegocioException {
+      rethrow;
+    } catch (error) {
+      AppLogger.warning('Cancelación sin conexión: $error');
+      throw const ReglaNegocioException(
+        'Necesitas conexión para liberar una plaza confirmada',
+      );
+    }
+    await local.guardar(
+      inscripcion.copyWith(
+        estado: EstadoInscripcion.cancelada,
+        updatedAt: ahora,
+        pendingSync: false,
+        limpiarError: true,
+      ),
+    );
+  }
+
+  /// Quita de Drift un intento rechazado o cancelado.
+  Future<void> descartar(Inscripcion inscripcion) async {
+    if (inscripcion.estado.esActiva) {
+      throw const ReglaNegocioException(
+        'Cancela la inscripción antes de descartarla',
+      );
+    }
+    await local.eliminar(inscripcion.id);
+  }
+
+  // ----- Tutor y coordinación -----
+
+  Stream<List<Inscripcion>> observarInscritos(Sesion sesion) {
+    final remoteSource = remote;
+    if (remoteSource == null) return Stream.value(const []);
+    return remoteSource.observarInscritos(sesion);
+  }
+
+  /// Regla 4: solo el tutor de la sesión, después del inicio.
+  Future<void> registrarAsistencia({
+    required Inscripcion inscripcion,
+    required Sesion sesion,
+    required Perfil tutor,
+    required bool asistio,
+  }) async {
+    final actualizada = ReglasTutoria.registrarAsistencia(
+      inscripcion,
+      sesion,
+      actorUid: tutor.uid,
+      asistio: asistio,
+      ahora: reloj(),
+    );
+    final remoteSource = remote;
+    if (remoteSource == null) {
+      throw const ReglaNegocioException('Sin conexión con el servidor');
+    }
+    await remoteSource.registrarAsistencia(actualizada).timeout(syncTimeout);
+  }
+
+  Future<List<Inscripcion>> inscritosDelServidor(Sesion sesion) async {
+    final remoteSource = remote;
+    if (remoteSource == null) {
+      throw const ReglaNegocioException('Sin conexión con el servidor');
+    }
+    return remoteSource.inscritos(sesion).timeout(syncTimeout);
   }
 }
