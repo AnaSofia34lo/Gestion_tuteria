@@ -7,10 +7,9 @@ repositorio:** se comparten solo por el medio privado que indique el docente.
 
 | Cuenta | Rol | Cómo se obtiene |
 |---|---|---|
-| `estudiante1@tutorias-g615.test` | Estudiante | Registro desde la app |
-| `estudiante2@tutorias-g615.test` | Estudiante | Registro desde la app |
-| `tutor1@tutorias-g615.test` | Tutor | Registro desde la app y luego `rol = "tutor"` en Firestore Console |
-| `coordinador@tutorias-g615.test` | Coordinador | Registro desde la app y luego `rol = "coordinador"` en Firestore Console |
+| `edison.estudiante@gmial.com` | Estudiante | Registro desde la app |
+| `edison.tutor@gmail.com` | Tutor | Registro desde la app y luego `rol = "tutor"` en Firestore Console |
+| `edison.coordinador@gmail.com` | Coordinador | Registro desde la app y luego `rol = "coordinador"` en Firestore Console |
 
 Para asignar el rol: Firebase Console → Firestore Database → `usuarios` →
 documento con el uid de la cuenta → editar el campo `rol`.
