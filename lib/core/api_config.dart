@@ -1,7 +1,4 @@
-/// Endpoint HTTP del catálogo de asignaturas y temas.
-///
-/// Subir `docs/catalogo_asignaturas.json` a MockAPI, dummyjson.com/c o un
-/// endpoint propio y reemplazar esta URL por la que entregue el servicio.
+// Endpoint HTTP del catálogo de asignaturas y temas.
 class ApiConfig {
   ApiConfig._();
 
